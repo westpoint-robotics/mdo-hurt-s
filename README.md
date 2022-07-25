@@ -31,10 +31,14 @@ The bedrock of MDO-HuRT-S is the [SeaRobotics Surveyor M1.8](https://www.searobo
 #### Ubiquiti AC Bullet: Base Access Point
 Connected to the router, this Ubiquiti AC Bullet is the Access Point to all the ASVs.
   ![base station settings](basestation_wireless_settings.png)
+   ![base station settings2](basestation_network_settings.png)
 
 #### Ubiquiti AC Bullet: ASV
 Each ASV has its own dedicated Ubiquiti AC Bullet WiFi radio attached in bridge mode.
-
+  ![boat bullet settings](boat_ubiquiti_wireless_settings.png)
+![boat bullet settings2](boat_ubiquiti_network_settings.png)
+  
+  
 #### BCU (navigation computer)
   Changing BCU ip ----
 On the laptop provided open WinSCP ----
