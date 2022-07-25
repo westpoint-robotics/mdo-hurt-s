@@ -52,7 +52,14 @@ Open the interfaces text file ----
 Edit the ip’s
 
 
-#### DAC (data acquisition computer
+#### DAC (data acquisition computer)
+  yo
+  
+  flashing ubuntu onto DAC ----
+  DAC has hdmi port inside the USV and usb ports on the outside. ----
+  after flashing the DAC thinks there is another monitor which makes this a struggle, but there are work arounds ----
+  after flashing there is a blank screen. press shift-tab enter to bring ubuntu installer onto your monitor. follow the steps
+  
 
 #### Center Camera
   Changing camera (raspberry pi) ip ----
