@@ -52,13 +52,13 @@ Open the interfaces text file ----
 Edit the ip’s
 
 
-#### DAC (data acquisition computer)
-  yo
+#### DAC (data acquisition computer) (named searobot01/02/ect)
+  logging into DAC with hdmi ---- when turned on a purple screen will come up because of monitor issues ---- work around this by pressing enter, your password, then enter again ---- this will log you in ---- right click the background and change monitor settings
   
   flashing ubuntu onto DAC ----
   DAC has hdmi port inside the USV and usb ports on the outside. ----
   after flashing the DAC thinks there is another monitor which makes this a struggle, but there are work arounds ----
-  after flashing there is a blank screen. press shift-tab enter to bring ubuntu installer onto your monitor. follow the steps
+  after flashing there is a blank screen. press shift-tab enter to bring ubuntu installer onto your monitor. follow the prompts
   
 
 #### Center Camera
