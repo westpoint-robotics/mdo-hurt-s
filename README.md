@@ -36,14 +36,14 @@ Each ASV has its own dedicated Ubiquiti AC Bullet WiFi radio attached in bridge 
 
 #### BCU (navigation computer)
   Changing BCU ip
-On the laptop provided open WinSCP
-Log in 
-    protocol : SFTP
-    Host name: BCU current ip (factory default is 192.168.0.50)
-    Username: root
-    Password: searobot
-On the right side follow the file path ../etc/network
-Open the interfaces text file
+On the laptop provided open WinSCP ----
+Log in ----
+    protocol : SFTP ----
+    Host name: BCU current ip (factory default is 192.168.0.50) ----
+    Username: root ----
+    Password: searobot ----
+On the right side follow the file path ../etc/network ----
+Open the interfaces text file ----
 Edit the ip’s
 
 
