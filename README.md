@@ -55,4 +55,13 @@ ssh pi@(camera ip) (default 192.168.0.20) ----
 Password: searobot ----
 sudo nano /etc/dhcpcd.conf ----
 Change ip’s
+  
+#### wiznet
+  Changing wiznet ip ----
+Download wiznet configuration tool
+https://github.com/Wiznet/WIZnet-S2E-Tool-GUI/releases/download/V1.5.0/wizconfig-V1.5.0.exe ----
+click device search ----
+Click on the mac address of the robot ----
+Change ip’s
+
 
