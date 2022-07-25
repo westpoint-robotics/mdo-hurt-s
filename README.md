@@ -50,3 +50,9 @@ Edit the ip’s
 #### DAC (data acquisition computer
 
 #### Center Camera
+  Changing camera (raspberry pi) ip ----
+ssh pi@(camera ip) (default 192.168.0.20) ---- 
+Password: searobot ----
+sudo nano /etc/dhcpcd.conf ----
+Change ip’s
+
