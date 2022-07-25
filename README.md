@@ -32,6 +32,9 @@ The bedrock of MDO-HuRT-S is the [SeaRobotics Surveyor M1.8](https://www.searobo
 Connected to the router, this Ubiquiti AC Bullet is the Access Point to all the ASVs. 
   
 The bullets have been sent to us with two different passwords ---- username: searobot ---- password Se@r0bot or Sear0bot
+  
+ firmware ---- Air0S8 -> 2WA.V8.7.11 ---- Build Number: 46972
+
   ![base station settings](basestation_wireless_settings.png)
    ![base station settings2](basestation_network_settings.png)
 
