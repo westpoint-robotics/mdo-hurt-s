@@ -35,7 +35,7 @@ Connected to the router, this Ubiquiti AC Bullet is the Access Point to all the 
 Each ASV has its own dedicated Ubiquiti AC Bullet WiFi radio attached in bridge mode.
 
 #### BCU (navigation computer)
-  Changing BCU ip
+  Changing BCU ip ----
 On the laptop provided open WinSCP ----
 Log in ----
     protocol : SFTP ----
