@@ -175,7 +175,7 @@ void M1_8::registerVariables()
 //  Register("DESIRED_THRUST",  0);
 //  Register("DESIRED_RUDDER",  0);
   Register("DESIRED_HEADING", 0);
-  Register("DESRIRED_SPEED", 0);
+  Register("DESIRED_SPEED", 0);
   Register("BLOCK_GPS",  0);
   Register("ROTATE_IN_PLACE", 0);
   Register("ROTATE_HDG_TARGET", 0);
@@ -373,22 +373,23 @@ void M1_8::sendMessagesToSocket()
   
   // Send the primary PSEAC front seat command
   string msg = "PSEAC,";
-  if (m_stale_mode = true) { 
-    // msg += "L,"; 
+  if (m_stale_mode == true || m_ivp_allstop == true) { 
+    msg += "L,"; 
   }
   else if (m_drive_mode == "rotate") { 
     // msg += "C,"; 
   } 
   else if (m_drive_mode == "normal" || m_drive_mode == "aggro") { 
-    //msg += "T,";
+    msg += "G,";
   }
   //msg +="T,,20,-10,THR_ON";
   // msg += doubleToStringX(thrustL,1) + ",";
   //msg += doubleToStringX(thrustR,1) + ",";
   // Spead/Heading Controller on SeaRobotics Surveyor M1.8
-  msg += "G,";
+  //msg += "L,";
   msg += doubleToStringX(m_heading) + ",";
-  msg += doubleToStringX(m_speed) +",,,";
+  //msg += doubleToStringX(m_speed) +",,,";
+  msg += to_string(m_speed) +",,,";
 //  double str_des_thrL = (m_thrust.getThrustLeft());
 //  double str_des_thrR = (m_thrust.getThrustRight());
   
@@ -412,30 +413,21 @@ void M1_8::readMessagesFromSocket()
 {
   list<string> incoming_msgs = m_ninja.getSockMessages();
   list<string>::iterator p;
+  int nothing;
   for(p=incoming_msgs.begin(); p!=incoming_msgs.end(); p++) {
     string msg = *p;
     msg = biteString(msg, '\r'); // Remove CRLF
-    Notify("IM300_RAW_NMEA", msg);
+    Notify("IM1_8_RAW_NMEA", msg);
 
     bool handled = false;
     if(m_ignore_msgs.count(msg.substr (0,6)) >= 1) 
       handled = true;
-    else if(strBegins(msg, "$GPRMC"))
-      handled = handleMsgGPRMC(msg);
-    else if(strBegins(msg, "$GNRMC"))
-      handled = handleMsgGNRMC(msg); // Added on 06-01-2022 by Supun for 2022 Herons
     else if(strBegins(msg, "$GPGGA"))
-      handled = handleMsgGPGGA(msg);
-    else if(strBegins(msg, "$GNGGA"))
-      handled = handleMsgGNGGA(msg); // Added on 06-01-2022 by Supun for 2022 Herons
-    else if(strBegins(msg, "$PSEAA")){
-      bool cond1 = m_heading_source == "imu";
-      bool cond2 = m_heading_source == "auto";
-      if (cond1 or cond2)
-        handled = handleMsgPSEAA_heading(msg);
-      else   // ignore it
-	handled = true;
-    }
+      handled = handleMsgGPGGA(msg);    
+    else if(strBegins(msg, "$GPVTG"))
+      handled = handleMsgGPVTG(msg); // Added on 08-09-2022 by Tyler Errico for 2022 Surveryors
+    else if(strBegins(msg, "$PSEAA"))
+      handled = handleMsgPSEAA_heading(msg);
     else if(strBegins(msg, "$PSEAB"))
       handled = handleMsgPSEAB(msg);
     else
@@ -449,7 +441,7 @@ void M1_8::readMessagesFromSocket()
 //---------------------------------------------------------
 // Procedure: handleConfigIgnoreMsg()
 //  Examples: ignore_msg = $GPGLL
-//            ignore_msg = $GPGLL, GPGSV, $GPVTG
+//            ignore_msg = $GPGLL, GPGSV
 
 bool M1_8::handleConfigIgnoreMsg(string str)
 {
@@ -462,7 +454,7 @@ bool M1_8::handleConfigIgnoreMsg(string str)
     if((msg.length() == 6) && (msg.at(0) = '$'))
       m_ignore_msgs.insert(msg);
     else
-      all_ok = false;
+      all_ok = false; 
   }
 
   return(all_ok);
@@ -477,9 +469,12 @@ bool M1_8::handleConfigIgnoreMsg(string str)
 
 void M1_8::checkForStalenessOrAllStop()
 {
+
+  m_searobot_mode = "G";
   if(m_ivp_allstop) {
-    m_thrust.setRudder(0);
-    m_thrust.setThrust(0);
+//    m_thrust.setRudder(0);
+//    m_thrust.setThrust(0);
+	m_searobot_mode = "L";
     return;
   }
 
@@ -700,6 +695,53 @@ bool M1_8::handleMsgGNRMC(string msg)
 
 
 //---------------------------------------------------------
+// Procedure: handleMsgGPVTG()
+//      Note: Proper NMEA format and checksum prior confirmed  
+//      Note: Trying to get speed
+//   Example:
+//   $GPVTG,000.0,T,012.7,M,000.11,N,0000.21,K,D*11
+//                                                 
+//  0   $GPVTG
+//  1 [Course] 	Course 309.62 	degrees measured heading
+//  2 [Reference] 	Reference T 	True
+//  3 [Course] 	Course	Degrees measured heading
+//  4 [Reference]    	M, magnetic
+//  5 [Speed]   	Speed in knots, measured horizontal speed
+//  6 [Units]     	N - Knots
+//  7 [Speed]    	Speed in km/hr measured horizontal speed
+//  8 [Units]    	K kilometers per hour
+//  9 [Mode]      	A A=Autonomous, D=DGPS, E=DR
+
+
+bool M1_8::handleMsgGPVTG(string msg)
+{
+  if(!strBegins(msg, "$GPVTG,"))
+    return(false);
+
+  // Remove the checksum info from end
+  rbiteString(msg, '*');
+
+  vector<string> flds = parseString(msg, ',');
+  if(flds.size() != 10) {
+    if(!m_ninja.getIgnoreCheckSum())
+      return(reportBadMessage(msg, "Wrong field count"));
+  }
+  
+  string str_speed = flds[7];
+  if(!isNumber(str_speed))
+    return(reportBadMessage(msg, "Bad Speed"));
+  
+  double double_speed = atof(str_speed.c_str()); //km/hour
+  double_speed = double_speed*1000; //convert to meters
+  double_speed = double_speed/3600; //convert to seconds
+  
+  m_nav_spd  = double_speed;
+  Notify(m_nav_prefix+"_SPEED", double_speed, "GPVTG");
+  
+  return(true);
+}
+
+//---------------------------------------------------------
 // Procedure: handleMsgGPGGA()
 //      Note: Proper NMEA format and checksum prior confirmed  
 //      Note: Only grabbing the number of satellites from this msg
@@ -778,8 +820,8 @@ bool M1_8::handleMsgGPGGA(string msg)
   if(ok) {
     m_nav_x = x;
     m_nav_y = y;
-    Notify(m_nav_prefix+"_X", x, "GPRMC");
-    Notify(m_nav_prefix+"_Y", y, "GPRMC");
+    Notify(m_nav_prefix+"_X", x, "GPGGA");
+    Notify(m_nav_prefix+"_Y", y, "GPGGA");
   }
 
   return(true);
@@ -1003,7 +1045,7 @@ bool M1_8::handleMsgPSEAB(string msg)
 bool M1_8::reportBadMessage(string msg, string reason)
 {
   reportRunWarning("Bad NMEA Msg: " + reason + ": " + msg);
-  Notify("IM300_BAD_NMEA", reason + ": " + msg);
+  Notify("IM1_8_BAD_NMEA", reason + ": " + msg);
   return(false);
 }
 
@@ -1110,6 +1152,7 @@ bool M1_8::buildReport()
   m_msgs << "------------------------------------------------------" << endl;
   m_msgs << "System:    voltage: " << pd_volt << "   satellites: " << str_sats << endl;
   m_msgs << "------------------------------------------------------" << endl;
+  m_msgs << "DESIRED_HEADING: " << m_heading << "    DESIRED_SPEED: " << m_speed << endl;
   
   if ( m_rot_ctrl.getRotateInPlace() ) {
     m_msgs << "Rotation target heading: " << str_rot_hdg_tgt << endl;
@@ -1127,7 +1170,3 @@ bool M1_8::buildReport()
 
   return(true);
 }
-
-
-
-

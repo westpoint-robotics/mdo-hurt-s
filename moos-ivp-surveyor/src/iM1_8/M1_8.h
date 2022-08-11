@@ -51,6 +51,7 @@ protected: // App Specific functions
   bool handleMsgPSEAA_heading(std::string);
   //bool handleMsgCPRBS(std::string);
   bool handleMsgPSEAB(std::string);
+  bool handleMsgGPVTG(std::string);
 
   bool reportBadMessage(std::string msg, std::string reason="");
   bool GeodesySetup();
@@ -81,6 +82,7 @@ private: // State variables
   SockNinja    m_ninja;
   Thruster     m_thrust;
   VehRotController m_rot_ctrl;
+  std::string m_searobot_mode;
 
   bool         m_ivp_allstop;
   bool         m_moos_manual_override;

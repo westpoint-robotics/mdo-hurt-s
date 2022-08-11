@@ -843,7 +843,7 @@ bool SockNinja::isValidNMEA(string str, bool strict)
   }
   string key;
   for(unsigned int i=1; i<6; i++) {
-    if((str[i] < 65) || (str[i] > 90)) {
+    if(!(((str[i] <= 90) && (str[i] >= 65)) || ((str[i] <= 57) && (str[i] >= 48)))) {
       addWarning("NMEA bad key");	      
       return(false);
     }

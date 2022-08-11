@@ -1,14 +1,17 @@
 //------------------------------------------------
-// iM300 config block
+// iM_8 config block
 
 ProcessConfig = iM1_8
 {
   //AppTick   = 10
   //CommsTick = 10
 
-  ip_addr=192.168.1.11  // frontseat IP address
+  ip_addr=192.168.1.71  // frontseat IP address
   port=8001      // default port number for Clearpath Heron
   comms_type=client
+  
+  //ignore_msg = $OIVCQ, $VCGLL, $PSEAD, $PSEAE, $PSEAF, $PSEAG, $PSEAJ, $PTQM0, $PTQM1, $DEBUG
+  //ignore_msg = $PSEAY, $PSEAX
 
   //MAX_RUDDER     = 30.0       // Maximum Rudder Angle  [+/- deg]
   //MAX_THRUST     = 100.0      // Maximum Thrust        [+/- %]
