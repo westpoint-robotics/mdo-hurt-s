@@ -430,6 +430,8 @@ void M1_8::readMessagesFromSocket()
       handled = handleMsgPSEAA_heading(msg);
     else if(strBegins(msg, "$PSEAB"))
       handled = handleMsgPSEAB(msg);
+    else if (strBegins(msg, "$PSEAG"))
+      handled = handleMsgPSEAG(msg);
     else
       reportBadMessage(msg, "Unknown NMEA Key");
             
@@ -610,6 +612,53 @@ bool M1_8::handleMsgGPRMC(string msg)
   return(true);
 }
 
+
+//---------------------------------------------------------
+// Procedure: handleMsgPSEAG()
+//      Note: Proper NMEA format and checksum prior confirmed  
+//   Example:
+//   $PSEAG,L*CHECKSUM
+
+//  0   $PSEAG
+//  1 [ERROR]     N = no fault,
+//                c = compass comms failurs,
+//                G = GPS comms failure,
+//                g = no gps fix,
+//                V = supervisory to low level controller failurs,
+//                A = under or over motor current,
+//                B = low battery,
+//                T = thruster motor,
+//                L = Leak Detected,
+//                M = OIS to Supervisory Controller communication failure,
+//                K = low level to superviosry controller failure,
+//                t = electronics temperature,
+//                m = camera comms error
+
+bool M1_8::handleMsgPSEAG(string msg)
+{
+  if(!strBegins(msg, "$PSEAG,"))
+    return(false);
+
+  // Remove the checksum info from end
+  rbiteString(msg, '*');
+
+  vector<string> flds = parseString(msg, ',');
+  if(flds.size() != 2) {
+    if(!m_ninja.getIgnoreCheckSum())
+      return(reportBadMessage(msg, "Wrong field count"));
+  } 
+  
+  
+  string str_error = flds[1];
+
+  if(str_error != "N") {
+    reportRunWarning("SeaRobot Error: " + msg);
+  }
+    
+
+  Notify("SEAROBOT_ERROR", str_error, "PSEAG");
+  return(true);
+}
 
 //---------------------------------------------------------
 // Procedure: handleMsgGNRMC()

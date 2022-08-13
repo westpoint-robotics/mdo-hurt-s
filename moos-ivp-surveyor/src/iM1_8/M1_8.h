@@ -52,6 +52,7 @@ protected: // App Specific functions
   //bool handleMsgCPRBS(std::string);
   bool handleMsgPSEAB(std::string);
   bool handleMsgGPVTG(std::string);
+  bool handleMsgPSEAG(std::string);
 
   bool reportBadMessage(std::string msg, std::string reason="");
   bool GeodesySetup();
