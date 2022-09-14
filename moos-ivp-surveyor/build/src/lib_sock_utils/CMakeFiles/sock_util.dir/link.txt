@@ -1,2 +1,0 @@
-/usr/bin/ar qc ../../../lib/libsock_util.a  CMakeFiles/sock_util.dir/SockNinja.cpp.o
-/usr/bin/ranlib ../../../lib/libsock_util.a

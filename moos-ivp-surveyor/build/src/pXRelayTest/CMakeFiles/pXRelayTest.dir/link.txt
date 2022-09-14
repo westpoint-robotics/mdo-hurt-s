@@ -1,1 +1,0 @@
-/usr/bin/c++   -fPIC -g -Wdeprecated-declarations  -rdynamic CMakeFiles/pXRelayTest.dir/Relayer.cpp.o CMakeFiles/pXRelayTest.dir/Relayer_Info.cpp.o CMakeFiles/pXRelayTest.dir/main.cpp.o  -o ../../../bin/pXRelayTest   -L/home/user/moos-ivp/lib  -Wl,-rpath,/home/user/moos-ivp/lib /home/user/moos-ivp/build/MOOS/MOOSCore/lib/libMOOS.a -lmbutil -lm -lpthread -pthread 
