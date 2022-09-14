@@ -25,10 +25,10 @@ M1_8::M1_8()
   m_max_rudder   = 30.0;        // default MAX_RUDDER (+/-)
   m_max_thrust   = 100.0;       // default MAX_THRUST (+/-)
   m_drive_mode   = "normal";    // default DRIVE_MODE ("normal"|"aggro"|"rotate")
-  min_speed = 1.5;
-  max_speed = 3.5;
-  s1 = 75;
-  s2 = 15;
+  m_min_speed = 1.5;
+  m_max_speed = 3.5;
+  m_s1 = 75;
+  m_s2 = 15;
 
   m_ivp_allstop      = true;
   m_moos_manual_override = true;
@@ -58,6 +58,8 @@ M1_8::M1_8()
   m_gps_prefix      = "GPS";
   m_compass_prefix  = "COMPASS";
   m_gps_blocked     = false;
+
+  m_legacy_controller = true;
 }
 
 //---------------------------------------------------------
@@ -113,6 +115,32 @@ bool M1_8::OnStartUp()
     }
     else if(param == "ignore_msg") 
       handled = handleConfigIgnoreMsg(value);
+    else if(param == "legacy")
+      {
+	if(value=="FALSE"||value=="false")
+	  m_legacy_controller=false;
+	else
+	  m_legacy_controller=true;
+
+	handled = true;
+      }
+    else if(param == "min_speed"){
+      m_min_speed = stod(value);
+      handled = true;
+    }
+    else if(param == "max_speed"){
+      m_max_speed = stod(value);
+      handled = true;
+    }
+    else if(param == "min_speed_angle"){
+      m_s1 = stod(value);
+      handled = true;
+      
+    }
+    else if(param == "max_speed_angle"){
+      m_s2 = stod(value);
+      handled = true;
+    }
     else if(param == "heading_source"){
       if (value == "gps") {
 	m_heading_source = "gps";
@@ -393,7 +421,9 @@ void M1_8::sendMessagesToSocket()
   //msg += "L,";
   msg += doubleToStringX(m_heading) + ",";
   //msg += doubleToStringX(m_speed) +",,,";
-  if (m_searobot_mode == "G") {
+  if (m_searobot_mode == "G" && m_legacy_controller == false) {
+
+   
   	//Speed Controller
   	m_hdg_diff = abs(m_heading - m_nav_hdg);
   	if (m_hdg_diff > 180) {
@@ -403,12 +433,12 @@ void M1_8::sendMessagesToSocket()
   			m_hdg_diff = 360 + m_heading - m_nav_hdg;
   		}
   	}
-  	if (m_hdg_diff > s1 || ((m_speed < abs(min_speed)) && (m_speed != 0))) {
-  		m_speed = min_speed;
-  	} else if (m_hdg_diff < s1 && m_hdg_diff > s2) {
-  		m_speed = min_speed + (max_speed - min_speed)*(1-((m_hdg_diff - s2)/(180 - s1 - s2)));
-  	} else if (m_hdg_diff < s2 || m_speed > abs(max_speed)) {
-  		m_speed = max_speed;
+  	if (m_hdg_diff > m_s1 || ((m_speed < abs(m_min_speed)) && (m_speed != 0))) {
+  		m_speed = m_min_speed;
+  	} else if (m_hdg_diff < m_s1 && m_hdg_diff > m_s2) {
+  		m_speed = m_min_speed + (m_max_speed - m_min_speed)*(1-((m_hdg_diff - m_s2)/(180 - m_s1 - m_s2)));
+  	} else if (m_hdg_diff < m_s2 || m_speed > abs(m_max_speed)) {
+  		m_speed = m_max_speed;
   	}
   	//Speed Controller
   }
@@ -1178,8 +1208,8 @@ bool M1_8::buildReport()
   m_msgs << "System:    voltage: " << pd_volt << "   satellites: " << str_sats << endl;
   m_msgs << "------------------------------------------------------" << endl;
   m_msgs << "DESIRED_HEADING: " << m_heading << "    DESIRED_SPEED: " << m_speed << endl;
-  m_msgs << "Heading Diff: " << m_hdg_diff << " Min_S_T: " << s1 << " Max_S_T: " <<  s2 <<endl;
-  m_msgs << "Min Speed: " << min_speed << " Max Speed: " << max_speed << endl;
+  m_msgs << "Heading Diff: " << m_hdg_diff << " Min_Speed_Angle: " << m_s1 << " Max_Speed_Angle: " <<  m_s2 <<endl;
+  m_msgs << "Min Speed: " << m_min_speed << " Max Speed: " << m_max_speed << endl;
   
   if ( m_rot_ctrl.getRotateInPlace() ) {
     m_msgs << "Rotation target heading: " << str_rot_hdg_tgt << endl;

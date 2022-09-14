@@ -111,6 +111,15 @@ void showExampleConfigAndExit()
   blk("                                                                ");
   blk("  // threshold in seconds, default is 1.5                       ");
   blk("  stale_nvg_msg_thresh = 2                                      ");
+  blk("                                                                ");
+  blk(" //Legacy iM1_8 controller                                      ");
+  blk(" legacy = false //default is true                               ");
+  blk(" min_speed = 1.5 //mps                                          ");
+  blk(" max_speed = 3.5 //mps                                          ");
+  blk(" min_speed_angle = 75 //degrees between current heading and     ");
+  blk("                      //desired heading fo min speed            ");
+  blk(" max_speed_angle = 15 //degrees between current heading and     ");
+  blk("                      //desired heading for max speed           ");
   blk("}                                                               ");
   blk("                                                                ");
   exit(0);

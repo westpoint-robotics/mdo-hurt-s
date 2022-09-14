@@ -105,10 +105,10 @@ private: // State variables
   double	m_heading;
   double	m_speed;
   double	m_hdg_diff;
-  double	min_speed;
-  double	max_speed;
-  double	s1;
-  double	s2;
+  double	m_min_speed;
+  double	m_max_speed;
+  double	m_s1;
+  double	m_s2;
 
   unsigned int m_bad_nmea_semantic;
 
@@ -116,8 +116,9 @@ private: // State variables
   bool         m_gps_blocked;
 
 
+  //new controller variables
+  bool m_legacy_controller;
   
-
 };
 
 #endif 
