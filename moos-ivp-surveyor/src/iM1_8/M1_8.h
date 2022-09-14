@@ -104,6 +104,11 @@ private: // State variables
   double       m_nav_spd;
   double	m_heading;
   double	m_speed;
+  double	m_hdg_diff;
+  double	min_speed;
+  double	max_speed;
+  double	s1;
+  double	s2;
 
   unsigned int m_bad_nmea_semantic;
 

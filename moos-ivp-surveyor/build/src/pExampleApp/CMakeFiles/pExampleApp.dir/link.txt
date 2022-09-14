@@ -1,0 +1,1 @@
+/usr/bin/c++   -fPIC -g -Wdeprecated-declarations  -rdynamic CMakeFiles/pExampleApp.dir/main.cpp.o  -o ../../../bin/pExampleApp   -L/home/user/moos-ivp/lib  -Wl,-rpath,/home/user/moos-ivp/lib /home/user/moos-ivp/build/MOOS/MOOSCore/lib/libMOOS.a -lm -lpthread -pthread 

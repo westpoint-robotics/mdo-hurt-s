@@ -25,6 +25,10 @@ M1_8::M1_8()
   m_max_rudder   = 30.0;        // default MAX_RUDDER (+/-)
   m_max_thrust   = 100.0;       // default MAX_THRUST (+/-)
   m_drive_mode   = "normal";    // default DRIVE_MODE ("normal"|"aggro"|"rotate")
+  min_speed = 1.5;
+  max_speed = 3.5;
+  s1 = 75;
+  s2 = 15;
 
   m_ivp_allstop      = true;
   m_moos_manual_override = true;
@@ -389,6 +393,25 @@ void M1_8::sendMessagesToSocket()
   //msg += "L,";
   msg += doubleToStringX(m_heading) + ",";
   //msg += doubleToStringX(m_speed) +",,,";
+  if (m_searobot_mode == "G") {
+  	//Speed Controller
+  	m_hdg_diff = abs(m_heading - m_nav_hdg);
+  	if (m_hdg_diff > 180) {
+  		if (m_heading > m_nav_hdg) {
+  			m_hdg_diff = 360 + m_nav_hdg - m_heading;
+  		} else {
+  			m_hdg_diff = 360 + m_heading - m_nav_hdg;
+  		}
+  	}
+  	if (m_hdg_diff > s1 || ((m_speed < abs(min_speed)) && (m_speed != 0))) {
+  		m_speed = min_speed;
+  	} else if (m_hdg_diff < s1 && m_hdg_diff > s2) {
+  		m_speed = min_speed + (max_speed - min_speed)*(1-((m_hdg_diff - s2)/(180 - s1 - s2)));
+  	} else if (m_hdg_diff < s2 || m_speed > abs(max_speed)) {
+  		m_speed = max_speed;
+  	}
+  	//Speed Controller
+  }
   //convert from m/s to knots
   double speed_knots = m_speed *1.943844;
   msg += to_string(speed_knots) +",,,";
@@ -1155,6 +1178,8 @@ bool M1_8::buildReport()
   m_msgs << "System:    voltage: " << pd_volt << "   satellites: " << str_sats << endl;
   m_msgs << "------------------------------------------------------" << endl;
   m_msgs << "DESIRED_HEADING: " << m_heading << "    DESIRED_SPEED: " << m_speed << endl;
+  m_msgs << "Heading Diff: " << m_hdg_diff << " Min_S_T: " << s1 << " Max_S_T: " <<  s2 <<endl;
+  m_msgs << "Min Speed: " << min_speed << " Max Speed: " << max_speed << endl;
   
   if ( m_rot_ctrl.getRotateInPlace() ) {
     m_msgs << "Rotation target heading: " << str_rot_hdg_tgt << endl;
