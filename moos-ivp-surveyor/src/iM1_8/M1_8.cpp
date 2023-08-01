@@ -49,6 +49,8 @@ M1_8::M1_8()
   m_nav_y   = -1;
   m_nav_hdg = -1;
   m_nav_spd = -1;
+  m_nav_pitch = -1;
+  m_nav_roll = -1;
 
   m_heading_source        = "auto";
   m_stale_nvg_msg_thresh  = 1.5;
@@ -482,7 +484,7 @@ void M1_8::readMessagesFromSocket()
     else if(strBegins(msg, "$GPVTG"))
       handled = handleMsgGPVTG(msg); // Added on 08-09-2022 by Tyler Errico for 2022 Surveryors
     else if(strBegins(msg, "$PSEAA"))
-      handled = handleMsgPSEAA_heading(msg);
+      handled = handleMsgPSEAA(msg);
     else if(strBegins(msg, "$PSEAB"))
       handled = handleMsgPSEAB(msg);
     else
@@ -961,21 +963,44 @@ bool M1_8::handleMsgPSEAA(string msg)
   rbiteString(msg, '*');
   vector<string> flds = parseString(msg, ',');
   if(flds.size() != 10) {
-    if(!m_ninja.getIgnoreCheckSum())
+    if(!m_ninja.getIgnoreCheckSum()){
+      string warning = "Wrong field count:" + uintToString(flds.size());
       return(reportBadMessage(msg, "Wrong field count"));
+    }
   }
 
   //KEEP THIS
   string str_hdg = flds[3];
 
+  string str_pitch = flds[1];
+  string str_roll = flds[2];
+
+
   //KEEP THIS
   if(!isNumber(str_hdg)) 
     return(reportBadMessage(msg, "Bad Hdg"));
   //KEEP THIS
+  if(!isNumber(str_pitch)){ return (reportBadMessage(msg, "Bad Pitch"));}
+  if(!isNumber(str_roll)){return (reportBadMessage(msg, "Bad Roll"));}
+  
   double dbl_hdg = atof(str_hdg.c_str());
   m_nav_hdg = dbl_hdg;
   Notify(m_nav_prefix+"_HEADING", dbl_hdg, "PSEAA");
   Notify(m_compass_prefix+"_HEADING", dbl_hdg, "PSEAA");
+  m_last_nvg_msg_time = MOOSTime();
+
+
+  double dbl_pitch = atof(str_pitch.c_str());
+  m_nav_pitch = dbl_pitch;
+  Notify(m_nav_prefix + "_PITCH", dbl_pitch, "PSEAA");
+  Notify(m_compass_prefix + "_PITCH", dbl_pitch, "PSEAA");
+
+
+  double dbl_roll = atof(str_roll.c_str());
+  m_nav_roll = dbl_roll;
+  Notify(m_nav_prefix + "_ROLL", dbl_roll, "PSEAA");
+  Notify(m_compass_prefix + "_ROLL", dbl_roll, "PSEAA");
+
   return(true);
 }
 
@@ -984,6 +1009,7 @@ bool M1_8::handleMsgPSEAA(string msg)
 //      Note: Proper NMEA format and checksum prior confirmed  
 // This function will only publish NAV_HEADING from the 
 // $PSEAA message
+// TODO: Review why this is needed as a whole function for only a single PSEAA value? (heading)
 
 bool M1_8::handleMsgPSEAA_heading(string msg)
 {
@@ -1008,7 +1034,7 @@ bool M1_8::handleMsgPSEAA_heading(string msg)
   m_nav_hdg = dbl_hdg;
   Notify(m_nav_prefix+"_HEADING", dbl_hdg, "PSEAA");
   Notify(m_compass_prefix+"_HEADING", dbl_hdg, "PSEAA");
-  m_last_nvg_msg_time = MOOSTime();
+  
   return(true);
 }
 
