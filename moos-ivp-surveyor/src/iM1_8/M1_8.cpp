@@ -402,7 +402,11 @@ void M1_8::sendMessagesToSocket()
   // Update differential thrust values
   thrustL = m_thrust.getThrustLeft();
   thrustR = m_thrust.getThrustRight();
-  
+
+//HERE is where all magic happens
+//we ignore rotate mode and all thrustL/R commands
+//simply send desired heading and speed to PSEAC message
+//after converting m/s to knots
   // Send the primary PSEAC front seat command
   string msg = "PSEAC,";
   if (m_stale_mode == true || m_ivp_allstop == true) { 
@@ -421,6 +425,8 @@ void M1_8::sendMessagesToSocket()
   //msg += "L,";
   msg += doubleToStringX(m_heading) + ",";
   //msg += doubleToStringX(m_speed) +",,,";
+
+//ignore the following if block -- it is NOT being utilized
   if (m_searobot_mode == "G" && m_legacy_controller == false) {
 
    
