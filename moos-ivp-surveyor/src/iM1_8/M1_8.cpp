@@ -59,7 +59,15 @@ M1_8::M1_8()
   m_compass_prefix  = "COMPASS";
   m_gps_blocked     = false;
 
+  m_searobot_mode     = "T"; 
   m_legacy_controller = true;
+  
+  m_valid_USV_control_modes.insert("L");
+  m_valid_USV_control_modes.insert("T");
+  m_valid_USV_control_modes.insert("C");
+  m_valid_USV_control_modes.insert("G");
+  m_valid_USV_control_modes.insert("R");
+  // add more if needed
 }
 
 //---------------------------------------------------------
@@ -258,6 +266,7 @@ bool M1_8::OnNewMail(MOOSMSG_LIST &NewMail)
     }
     else if(key == "BLOCK_GPS") 
       setBooleanOnString(m_gps_blocked, sval);
+    /*
     else if(key == "ROTATE_IN_PLACE") {      
       bool bval, ok1;
       ok1 = setBooleanOnString(bval, sval);
@@ -283,6 +292,7 @@ bool M1_8::OnNewMail(MOOSMSG_LIST &NewMail)
 	Notify("ROTATE_HDG_TARGET", m_rot_ctrl.getHeadingTarget() );  // for debugging. 
       
     }
+    */
     else if(key == "MOOS_MANUAL_OVERRIDE") {
       setBooleanOnString(m_moos_manual_override, sval);
 
@@ -363,38 +373,14 @@ bool M1_8::GeodesySetup()
 void M1_8::sendMessagesToSocket()
 {
 
+  // Do the standard thruster mapping and allocation
+  // to get thrustL and thrustR
+  
+  // We will later convert these values into thrust and
+  // thrust diff to send to the frontseat.
+  
   double thrustL, thrustR;
-
-  // Mode 1:  Rotation
-
-  // Check if still ok to rotate in place
-  bool ok_to_rotate = m_rot_ctrl.checkClearToRotate( m_nav_x, m_nav_y, m_curr_time);
-
-  if (ok_to_rotate and !m_moos_manual_override) {
-
-    // overwrite incoming thrust and rudder commands
-    double thrust, rudder;
-    m_rot_ctrl.calControl(m_nav_hdg, m_nav_x, m_nav_y, thrust, rudder);
-
-    // Check if finished
-    bool rot_finished = m_rot_ctrl.checkRotateFinished(m_nav_hdg);
-    // If finished, and the command to rotate is still true,
-    // then send the ROTATE_FINISHED end flag.
-    if ( rot_finished and m_rot_ctrl.getRotateInPlace() )
-      Notify("ROTATE_FINISHED", "true");
-    
-    m_thrust.setRudder(rudder * m_max_rudder);
-    m_thrust.setThrust(thrust * m_max_thrust);
-
-    // use rotate mode for thrusters. 
-    m_thrust.setDriveMode("rotate");
-    
-  } else {
-
-    // Mode 2: Carry on as normal
-    m_thrust.setDriveMode(m_drive_mode);
-
-  }
+  m_thrust.setDriveMode(m_drive_mode);
 
   // Calculate the right and left thruster values
   // with whatever DriveMode is selected.
@@ -403,6 +389,61 @@ void M1_8::sendMessagesToSocket()
   thrustL = m_thrust.getThrustLeft();
   thrustR = m_thrust.getThrustRight();
 
+  // Now convert
+  double pseac_msg_thrust, pseac_msg_thrust_diff;
+  convertThrustVals(thrustL, thrustR,
+		    pseac_msg_thrust, pseac_msg_thrust_diff);
+
+    
+  // build PSEAC message
+  //  SeaRobotics proprietary sentence
+  //        1    2   3   4   5
+  //        |    |   |   |   |
+  // $PSEAC,c--c,x.x,x.x,x.x,c--c*hh<CR><LF>
+    
+  string msg = "PSEAC,";
+
+  // Position 1) - USV control mode
+  // The mode is handled in checkForStalenessOrAllStop()
+  // m_searobot_mode is either L or T, but check again to be safe
+  if (m_valid_USV_control_modes.count(m_searobot_mode))
+    msg += m_searobot_mode + ",";
+  else{
+    reportRunWarning("Current control mode " + m_searobot_mode
+		     + " is not valid : Stopping sending commands");
+    return;
+  }
+
+  // Position 2) - Heading
+  // do we even need to send heading in T mode?  Need to check this
+  msg += doubleToStringX(m_heading) + ",";
+  //msg += ",";
+
+  // Position 3) - Thrust
+  msg += doubleToStringX(pseac_msg_thrust) + ",";
+
+  // Position 4) - Thrust Diff
+  msg += doubleToStringX(pseac_msg_thrust_diff) + ",";
+  
+  // Position 5) - Command string
+  // not used here
+  msg += ",";
+
+  // Pack and ship it
+  msg = "$"+msg+"*"+checksumHexStr(msg) + "\r\n";
+  m_ninja.sendSockMessage(msg);
+
+  // Publish command to MOOSDB for logging/debugging
+  Notify("PSEAC_MSG", msg); 
+  Notify("PSEAC_THRUST", pseac_msg_thrust);
+  Notify("PSEAC_THRUST_DIFF", pseac_msg_thrust_diff);
+  Notify("PSEAC_THRUST_L", thrustL);
+  Notify("PSEAC_THRUST_R", thrustR);
+  
+  // return now, and leave the rest of this code for reference
+  return; 
+
+#if 0
 //HERE is where all magic happens
 //we ignore rotate mode and all thrustL/R commands
 //simply send desired heading and speed to PSEAC message
@@ -463,6 +504,9 @@ void M1_8::sendMessagesToSocket()
   // Publish command to MOOSDB for logging/debugging
   //Notify("PSEAC_THRUST_L", thrustL);
   //Notify("PSEAC_THRUST_R", thrustR);
+
+#endif
+  
 }
 
 //---------------------------------------------------------
@@ -531,10 +575,10 @@ bool M1_8::handleConfigIgnoreMsg(string str)
 void M1_8::checkForStalenessOrAllStop()
 {
 
-  m_searobot_mode = "G";
+  m_searobot_mode = "T";
   if(m_ivp_allstop) {
-//    m_thrust.setRudder(0);
-//    m_thrust.setThrust(0);
+    m_thrust.setRudder(0);
+    m_thrust.setThrust(0);
 	m_searobot_mode = "L";
     return;
   }
@@ -1141,7 +1185,27 @@ void M1_8::reportWarningsEvents()
     retractRunWarning(retraction_str);
   }
 }
+
+
+//------------------------------------------------------------
+//  Procedure:  convertThrustVals
+//              Converts from thrust left and right to
+//              thrust and thrust diff per SeaRobotics email:
+//              "thrust = (port_thrust + stbd_thrust) / 2"
+//              "thrust_diff = (port_thrust - stbd_thrust) / 2"
+// 
+void M1_8::convertThrustVals(double thrustL, double thrustR,
+			     double& pseac_msg_thrust, double& pseac_msg_thrust_diff)
+{
+  // port is left, starboard is right
+  pseac_msg_thrust      = (thrustL + thrustR) / 2.0;
+  pseac_msg_thrust_diff = (thrustL - thrustR) / 2.0; 
   
+  return; 
+}
+
+
+
 //------------------------------------------------------------
 // Procedure: buildReport()
 //
@@ -1178,7 +1242,7 @@ bool M1_8::buildReport()
   string str_des_thr  = doubleToStringX(m_thrust.getThrust(),1);
   string str_des_thrL = doubleToStringX(m_thrust.getThrustLeft(),1);
   string str_des_thrR = doubleToStringX(m_thrust.getThrustRight(),1);
-  string str_rot_hdg_tgt = doubleToStringX(m_rot_ctrl.getHeadingTarget(), 1);
+  //string str_rot_hdg_tgt = doubleToStringX(m_rot_ctrl.getHeadingTarget(), 1);
 
   Notify("M4_DEBUG", str_des_thr);
   
@@ -1217,13 +1281,14 @@ bool M1_8::buildReport()
   m_msgs << "Heading Diff: " << m_hdg_diff << " Min_Speed_Angle: " << m_s1 << " Max_Speed_Angle: " <<  m_s2 <<endl;
   m_msgs << "Min Speed: " << m_min_speed << " Max Speed: " << m_max_speed << endl;
   
+  /*
   if ( m_rot_ctrl.getRotateInPlace() ) {
     m_msgs << "Rotation target heading: " << str_rot_hdg_tgt << endl;
     if ( m_rot_ctrl.checkClearToRotate( m_nav_x, m_nav_y, m_curr_time ) )
       m_msgs << "All clear to rotate.                                " << endl;
     m_msgs << "------------------------------------------------------" << endl;
   }
-  
+  */
   list<string> summary_lines = m_ninja.getSummary();
   list<string>::iterator p;
   for(p=summary_lines.begin(); p!=summary_lines.end(); p++) {
