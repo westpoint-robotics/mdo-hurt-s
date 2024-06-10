@@ -64,9 +64,7 @@ M1_8::M1_8()
   
   m_valid_USV_control_modes.insert("L");
   m_valid_USV_control_modes.insert("T");
-  m_valid_USV_control_modes.insert("C");
   m_valid_USV_control_modes.insert("G");
-  m_valid_USV_control_modes.insert("R");
   // add more if needed
 }
 
@@ -124,14 +122,7 @@ bool M1_8::OnStartUp()
     else if(param == "ignore_msg") 
       handled = handleConfigIgnoreMsg(value);
     else if(param == "legacy")
-      {
-	if(value=="FALSE"||value=="false")
-	  m_legacy_controller=false;
-	else
-	  m_legacy_controller=true;
-
-	handled = true;
-      }
+	handled = setBooleanOnString(m_legacy_controller, value);
     else if(param == "min_speed"){
       m_min_speed = stod(value);
       handled = true;
@@ -372,29 +363,7 @@ bool M1_8::GeodesySetup()
 
 void M1_8::sendMessagesToSocket()
 {
-
-  // Do the standard thruster mapping and allocation
-  // to get thrustL and thrustR
   
-  // We will later convert these values into thrust and
-  // thrust diff to send to the frontseat.
-  
-  double thrustL, thrustR;
-  m_thrust.setDriveMode(m_drive_mode);
-
-  // Calculate the right and left thruster values
-  // with whatever DriveMode is selected.
-  m_thrust.calcDiffThrust();
-  // Update differential thrust values
-  thrustL = m_thrust.getThrustLeft();
-  thrustR = m_thrust.getThrustRight();
-
-  // Now convert
-  double pseac_msg_thrust, pseac_msg_thrust_diff;
-  convertThrustVals(thrustL, thrustR,
-		    pseac_msg_thrust, pseac_msg_thrust_diff);
-
-    
   // build PSEAC message
   //  SeaRobotics proprietary sentence
   //        1    2   3   4   5
@@ -405,7 +374,7 @@ void M1_8::sendMessagesToSocket()
 
   // Position 1) - USV control mode
   // The mode is handled in checkForStalenessOrAllStop()
-  // m_searobot_mode is either L or T, but check again to be safe
+  // m_searobot_mode is either L, G, or T, but check again to be safe
   if (m_valid_USV_control_modes.count(m_searobot_mode))
     msg += m_searobot_mode + ",";
   else{
@@ -414,99 +383,82 @@ void M1_8::sendMessagesToSocket()
     return;
   }
 
-  // Position 2) - Heading
-  // do we even need to send heading in T mode?  Need to check this
-  msg += doubleToStringX(m_heading) + ",";
-  //msg += ",";
-
-  // Position 3) - Thrust
-  msg += doubleToStringX(pseac_msg_thrust) + ",";
-
-  // Position 4) - Thrust Diff
-  msg += doubleToStringX(pseac_msg_thrust_diff) + ",";
+  if (m_searobot_mode == "L"){
+    msg += "0,0,,,";
+    
+  } else if (m_searobot_mode == "G"){
+    
+    // Spead/Heading Controller on SeaRobotics Surveyor M1.8
+    // Position 2) - Heading   
+    msg += doubleToStringX(m_heading) + ",";
+    
+    // Position 3) - Speed
+    //convert from m/s to knots
+    double speed_knots = m_speed *1.943844;
+    msg += to_string(speed_knots) +",";
+    
+    // Position 4) - Thrust Diff - Not used in G mode
+    msg += ",";
+    
+    // Position 5) - Command string
+    // not used here
+    msg += ",";
+    
+  } else if (m_searobot_mode == "T") {
+    
+    // Do the standard thruster mapping and allocation
+    // to get thrustL and thrustR
+    
+    // We will later convert these values into thrust and
+    // thrust diff to send to the frontseat.
+    
+    double thrustL, thrustR;
+    m_thrust.setDriveMode(m_drive_mode);
+    
+    // Calculate the right and left thruster values
+    // with whatever DriveMode is selected.
+    m_thrust.calcDiffThrust();
+    // Update differential thrust values
+    thrustL = m_thrust.getThrustLeft();
+    thrustR = m_thrust.getThrustRight();
+    
+    // Now convert
+    double pseac_msg_thrust, pseac_msg_thrust_diff;
+    convertThrustVals(thrustL, thrustR,
+		      pseac_msg_thrust, pseac_msg_thrust_diff);
+    
+    // Position 2) - Heading
+    // do we even need to send heading in T mode?  Need to check this
+    msg += doubleToStringX(m_heading) + ",";
+    //msg += ",";
+    
+    // Position 3) - Thrust
+    msg += doubleToStringX(pseac_msg_thrust) + ",";
+    
+    // Position 4) - Thrust Diff
+    msg += doubleToStringX(pseac_msg_thrust_diff) + ",";
+    
+    // Position 5) - Command string
+    // not used here
+    msg += ",";
+    
+    // Publish command to the MOOSDB for logging
+    Notify("PSEAC_THRUST", pseac_msg_thrust);
+    Notify("PSEAC_THRUST_DIFF", pseac_msg_thrust_diff);
+    Notify("PSEAC_THRUST_L", thrustL);
+    Notify("PSEAC_THRUST_R", thrustR);
+    
+  }
   
-  // Position 5) - Command string
-  // not used here
-  msg += ",";
-
+  
   // Pack and ship it
   msg = "$"+msg+"*"+checksumHexStr(msg) + "\r\n";
   m_ninja.sendSockMessage(msg);
 
-  // Publish command to MOOSDB for logging/debugging
+  // Publish entire command to MOOSDB for logging/debugging
   Notify("PSEAC_MSG", msg); 
-  Notify("PSEAC_THRUST", pseac_msg_thrust);
-  Notify("PSEAC_THRUST_DIFF", pseac_msg_thrust_diff);
-  Notify("PSEAC_THRUST_L", thrustL);
-  Notify("PSEAC_THRUST_R", thrustR);
   
-  // return now, and leave the rest of this code for reference
-  return; 
-
-#if 0
-//HERE is where all magic happens
-//we ignore rotate mode and all thrustL/R commands
-//simply send desired heading and speed to PSEAC message
-//after converting m/s to knots
-  // Send the primary PSEAC front seat command
-  string msg = "PSEAC,";
-  if (m_stale_mode == true || m_ivp_allstop == true) { 
-    msg += "L,"; 
-  }
-  else if (m_drive_mode == "rotate") { 
-    // msg += "C,"; 
-  } 
-  else if (m_drive_mode == "normal" || m_drive_mode == "aggro") { 
-    msg += "G,";
-  }
-  //msg +="T,,20,-10,THR_ON";
-  // msg += doubleToStringX(thrustL,1) + ",";
-  //msg += doubleToStringX(thrustR,1) + ",";
-  // Spead/Heading Controller on SeaRobotics Surveyor M1.8
-  //msg += "L,";
-  msg += doubleToStringX(m_heading) + ",";
-  //msg += doubleToStringX(m_speed) +",,,";
-
-//ignore the following if block -- it is NOT being utilized
-  if (m_searobot_mode == "G" && m_legacy_controller == false) {
-
-   
-  	//Speed Controller
-  	m_hdg_diff = abs(m_heading - m_nav_hdg);
-  	if (m_hdg_diff > 180) {
-  		if (m_heading > m_nav_hdg) {
-  			m_hdg_diff = 360 + m_nav_hdg - m_heading;
-  		} else {
-  			m_hdg_diff = 360 + m_heading - m_nav_hdg;
-  		}
-  	}
-  	if (m_hdg_diff > m_s1 || ((m_speed < abs(m_min_speed)) && (m_speed != 0))) {
-  		m_speed = m_min_speed;
-  	} else if (m_hdg_diff < m_s1 && m_hdg_diff > m_s2) {
-  		m_speed = m_min_speed + (m_max_speed - m_min_speed)*(1-((m_hdg_diff - m_s2)/(180 - m_s1 - m_s2)));
-  	} else if (m_hdg_diff < m_s2 || m_speed > abs(m_max_speed)) {
-  		m_speed = m_max_speed;
-  	}
-  	//Speed Controller
-  }
-  //convert from m/s to knots
-  double speed_knots = m_speed *1.943844;
-  msg += to_string(speed_knots) +",,,";
-//  double str_des_thrL = (m_thrust.getThrustLeft());
-//  double str_des_thrR = (m_thrust.getThrustRight());
-  
-  //msg += doubleToStringX((str_des_thrL - str_des_thrR),1) + ",";
-  //msg = "echo $" + msg + "*" + checksumHexStr(msg);
-  msg = "$"+msg+"*"+checksumHexStr(msg) + "\r\n";
-  
-  m_ninja.sendSockMessage(msg);
-  
-  // Publish command to MOOSDB for logging/debugging
-  //Notify("PSEAC_THRUST_L", thrustL);
-  //Notify("PSEAC_THRUST_R", thrustR);
-
-#endif
-  
+  return;  
 }
 
 //---------------------------------------------------------
@@ -575,7 +527,11 @@ bool M1_8::handleConfigIgnoreMsg(string str)
 void M1_8::checkForStalenessOrAllStop()
 {
 
-  m_searobot_mode = "T";
+  if (m_legacy_controller)
+    m_searobot_mode = "G";
+  else
+    m_searobot_mode = "T";
+  
   if(m_ivp_allstop) {
     m_thrust.setRudder(0);
     m_thrust.setThrust(0);
