@@ -15,7 +15,7 @@
 #include <string>
 #include "SockNinja.h"
 #include "Thruster.h"
-#include "VehRotController.h"
+//#include "VehRotController.h"
 #include "MOOS/libMOOSGeodesy/MOOSGeodesy.h"
 #include "MOOS/libMOOS/Thirdparty/AppCasting/AppCastingMOOSApp.h"
 
@@ -57,6 +57,9 @@ protected: // App Specific functions
   bool reportBadMessage(std::string msg, std::string reason="");
   bool GeodesySetup();
   void checkForStalenessOrAllStop();
+  void convertThrustVals(double thrustL, double thrustR,
+			 double& pseac_msg_thrust,
+			 double& pseac_msg_thrust_diff);
 
   
 
@@ -82,7 +85,7 @@ private: // State variables
   CMOOSGeodesy m_geodesy;
   SockNinja    m_ninja;
   Thruster     m_thrust;
-  VehRotController m_rot_ctrl;
+  //VehRotController m_rot_ctrl;
   std::string m_searobot_mode;
 
   bool         m_ivp_allstop;
@@ -118,6 +121,7 @@ private: // State variables
 
   //new controller variables
   bool m_legacy_controller;
+  std::set<std::string> m_valid_USV_control_modes;
   
 };
 
