@@ -169,6 +169,10 @@ bool M1_8::OnStartUp()
     else if(param == "compass_prefix"){ 
       if(!strContainsWhite(value)){m_compass_prefix=value; handled=true;}
     }
+
+    else if(param == "rev_factor") {
+      handled = m_thrust.setRevFactor(value);
+    }	
     
     if(!handled){
       reportUnhandledConfigWarning(orig);
@@ -203,8 +207,8 @@ void M1_8::registerVariables()
 {
   AppCastingMOOSApp::RegisterVariables();
   Register("IVPHELM_ALLSTOP", 0);
-//  Register("DESIRED_THRUST",  0);
-//  Register("DESIRED_RUDDER",  0);
+  Register("DESIRED_THRUST",  0);
+  Register("DESIRED_RUDDER",  0);
   Register("DESIRED_HEADING", 0);
   Register("DESIRED_SPEED", 0);
   Register("BLOCK_GPS",  0);

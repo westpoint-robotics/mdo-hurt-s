@@ -26,6 +26,7 @@ Thruster::Thruster()
   m_drive_mode  = "normal";  // default DRIVE_MODE ("normal"|"aggro")
 
   m_max_list_size = 100;
+  m_rev_factor  = 0.3;
 }
 
 Thruster::~Thruster() {};
@@ -110,6 +111,15 @@ bool Thruster::setMaxThrust(double max_thr)
     return(false);
   }
 }
+
+//---------------------------------------------------------
+// Procedure: setRevFactor(string)
+
+bool Thruster::setRevFactor(string str)
+{
+  return(setDoubleStrictRngOnString(m_rev_factor, str, 0.0, 1.0));
+}
+
 
 //---------------------------------------------------------
 // Procedure: setRudder()
@@ -212,11 +222,11 @@ bool Thruster::calcDiffThrust()
 
   // AGGRO MODE:
   else if(m_drive_mode == "aggro"){
-    double max_revthrust, rev_factor, max_delta;
+    double max_revthrust, max_delta;
     upper_lim = 100;
     lower_lim = -100;
-    rev_factor = 0.2;
-    max_revthrust = -rev_factor*m_max_thr;
+   
+    max_revthrust = -m_rev_factor*m_max_thr;
     max_delta = m_max_thr - max_revthrust;
     delta = (max_delta/m_max_rud)*m_des_rud;
     m_des_thrL = m_des_thr + (delta/2);
@@ -227,15 +237,15 @@ bool Thruster::calcDiffThrust()
       double overL = m_des_thrL - upper_lim;
       m_des_thrL = upper_lim;
       m_des_thrR -= overL;
-      if (m_des_thrR < 0)  // rescale negative thrust
-        m_des_thrR *= -1/rev_factor;
+      if (m_des_thrR < max_revthrust) 
+        m_des_thrR = max_revthrust;  
     }
     else if(m_des_thrR > upper_lim){
       double overR = m_des_thrR - upper_lim;
       m_des_thrR = upper_lim;
       m_des_thrL -= overR;
-      if (m_des_thrL < 0)  // rescale negative thrust
-        m_des_thrL *= -1/rev_factor;
+      if (m_des_thrL < max_revthrust)  
+        m_des_thrL = max_revthrust;  
     }
     else if(m_des_thrL < max_revthrust){
       double underL = max_revthrust - m_des_thrL;
