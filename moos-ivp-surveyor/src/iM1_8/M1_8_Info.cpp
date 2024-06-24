@@ -95,6 +95,11 @@ void showExampleConfigAndExit()
   blk("  comms_type     = client       // [server], client             ");
   blk("  stale_thresh   = 15           // [1.5] seconds                ");
   blk("                                                                ");
+  blk("  rev_factor     = 0.3          // factor for max rev thrust    ");
+  blk("                                // allowed in reverse when in   ");
+  blk("                                // aggro mode.  Example:        ");
+  blk("                            // max_rev_thrust= -[0.3]*max_thrust");
+  blk("                                                                ");
   blk("  ivp_allstop    = false        // Default is true              ");
   blk("                                                                ");
   blk("  ignore_msg = $GPGLL, $GPZDA                                   ");
@@ -117,7 +122,7 @@ void showExampleConfigAndExit()
   blk(" min_speed = 1.5 //mps                                          ");
   blk(" max_speed = 3.5 //mps                                          ");
   blk(" min_speed_angle = 75 //degrees between current heading and     ");
-  blk("                      //desired heading fo min speed            ");
+  blk("                      //desired heading for min speed           ");
   blk(" max_speed_angle = 15 //degrees between current heading and     ");
   blk("                      //desired heading for max speed           ");
   blk("}                                                               ");

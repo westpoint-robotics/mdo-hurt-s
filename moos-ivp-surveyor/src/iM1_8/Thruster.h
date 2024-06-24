@@ -32,6 +32,7 @@ public:
   bool  setRudder(double des_rud);
   bool  setThrust(std::string des_thr);
   bool  setThrust(double des_thr);
+  bool  setRevFactor(std::string str);
 
   // GET functions:
   double  getRudder()       {return m_des_rud;};
@@ -53,6 +54,7 @@ private:
   double       m_des_thrR;
   double       m_des_thr;
   double       m_des_rud;
+  double       m_rev_factor;
   std::string  m_drive_mode;
 
   unsigned int            m_max_list_size;
