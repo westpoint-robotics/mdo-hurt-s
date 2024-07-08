@@ -15,7 +15,6 @@
 #include <string>
 #include "SockNinja.h"
 #include "Thruster.h"
-//#include "VehRotController.h"
 #include "MOOS/libMOOSGeodesy/MOOSGeodesy.h"
 #include "MOOS/libMOOS/Thirdparty/AppCasting/AppCastingMOOSApp.h"
 
@@ -85,7 +84,6 @@ private: // State variables
   CMOOSGeodesy m_geodesy;
   SockNinja    m_ninja;
   Thruster     m_thrust;
-  //VehRotController m_rot_ctrl;
   std::string m_searobot_mode;
 
   bool         m_ivp_allstop;
@@ -105,13 +103,13 @@ private: // State variables
   double       m_nav_y;
   double       m_nav_hdg;
   double       m_nav_spd;
-  double	m_heading;
-  double	m_speed;
+  double	m_des_heading;
+  double	m_des_speed;
   double	m_hdg_diff;
-  double	m_min_speed;
-  double	m_max_speed;
-  double	m_s1;
-  double	m_s2;
+  //  double	m_min_speed;
+  //  double	m_max_speed;
+  //  double	m_s1;
+  //  double	m_s2;
 
   unsigned int m_bad_nmea_semantic;
 
