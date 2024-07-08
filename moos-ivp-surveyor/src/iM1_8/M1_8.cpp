@@ -765,7 +765,7 @@ bool M1_8::handleMsgGNRMC(string msg)
 //      Note: Trying to get speed
 //   Example:
 //   $GPVTG,000.0,T,012.7,M,000.11,N,0000.21,K,D*11
-//                                                 
+//   $GPVTG,000.0,T,012.7,M,000.08,N,0000.14,K*77                                              
 //  0   $GPVTG
 //  1 [Course] 	Course 309.62 	degrees measured heading
 //  2 [Reference] 	Reference T 	True
@@ -788,8 +788,12 @@ bool M1_8::handleMsgGPVTG(string msg)
 
   vector<string> flds = parseString(msg, ',');
   if(flds.size() != 10) {
-    if(!m_ninja.getIgnoreCheckSum())
-      return(reportBadMessage(msg, "Wrong field count"));
+    if(!m_ninja.getIgnoreCheckSum()) {
+      if(flds[8] != "K")
+        return(reportBadMessage(msg, "BAD MSG!!"));
+      if(flds.size() != 9)
+        return(reportBadMessage(msg, "Wrong field count"));
+    }
   }
   
   string str_speed = flds[7];
