@@ -25,10 +25,10 @@ M1_8::M1_8()
   m_max_rudder   = 30.0;        // default MAX_RUDDER (+/-)
   m_max_thrust   = 100.0;       // default MAX_THRUST (+/-)
   m_drive_mode   = "normal";    // default DRIVE_MODE ("normal"|"aggro"|"rotate")
-  m_min_speed = 1.5;
-  m_max_speed = 3.5;
-  m_s1 = 75;
-  m_s2 = 15;
+  //m_min_speed = 1.5;
+  //m_max_speed = 3.5;
+  //m_s1 = 75;
+  //m_s2 = 15;
 
   m_ivp_allstop      = true;
   m_moos_manual_override = true;
@@ -123,6 +123,7 @@ bool M1_8::OnStartUp()
       handled = handleConfigIgnoreMsg(value);
     else if(param == "legacy")
 	handled = setBooleanOnString(m_legacy_controller, value);
+    /*
     else if(param == "min_speed"){
       m_min_speed = stod(value);
       handled = true;
@@ -140,6 +141,7 @@ bool M1_8::OnStartUp()
       m_s2 = stod(value);
       handled = true;
     }
+    */
     else if(param == "heading_source"){
       if (value == "gps") {
 	m_heading_source = "gps";
@@ -253,41 +255,15 @@ bool M1_8::OnNewMail(MOOSMSG_LIST &NewMail)
     }
     else if(key == "DESIRED_HEADING") {
 
-	m_heading = dval;
+	m_des_heading = dval;
     }
     else if(key == "DESIRED_SPEED") {
     
-	m_speed = dval;
+	m_des_speed = dval;
     }
     else if(key == "BLOCK_GPS") 
       setBooleanOnString(m_gps_blocked, sval);
-    /*
-    else if(key == "ROTATE_IN_PLACE") {      
-      bool bval, ok1;
-      ok1 = setBooleanOnString(bval, sval);
-      m_rot_ctrl.setRotateInPlace(bval);
-      
-      if (ok1 && bval ) {
-	// Record the time and location
-	m_rot_ctrl.setCmdTimeStamp(mtime);
-	m_rot_ctrl.setStartRotX(m_nav_x);
-	m_rot_ctrl.setStartRotY(m_nav_y);
-      }
-    }
-    else if(key == "ROTATE_HDG_TARGET") {
-      m_rot_ctrl.setHeadingTarget(dval);
-    }
-    else if(key == "ROTATE_TO_POINT") {
-      // save the current location for calculation
-      m_rot_ctrl.setStartRotX(m_nav_x);
-      m_rot_ctrl.setStartRotY(m_nav_y);
-      
-      bool ok2 = m_rot_ctrl.handlePoint(sval);
-      if (ok2)
-	Notify("ROTATE_HDG_TARGET", m_rot_ctrl.getHeadingTarget() );  // for debugging. 
-      
-    }
-    */
+ 
     else if(key == "MOOS_MANUAL_OVERRIDE") {
       setBooleanOnString(m_moos_manual_override, sval);
 
@@ -394,11 +370,11 @@ void M1_8::sendMessagesToSocket()
     
     // Spead/Heading Controller on SeaRobotics Surveyor M1.8
     // Position 2) - Heading   
-    msg += doubleToStringX(m_heading) + ",";
+    msg += doubleToStringX(m_des_heading) + ",";
     
     // Position 3) - Speed
     //convert from m/s to knots
-    double speed_knots = m_speed *1.943844;
+    double speed_knots = m_des_speed *1.943844;
     msg += to_string(speed_knots) +",";
     
     // Position 4) - Thrust Diff - Not used in G mode
@@ -433,7 +409,7 @@ void M1_8::sendMessagesToSocket()
     
     // Position 2) - Heading
     // do we even need to send heading in T mode?  Need to check this
-    msg += doubleToStringX(m_heading) + ",";
+    msg += doubleToStringX(m_des_heading) + ",";
     //msg += ",";
     
     // Position 3) - Thrust
@@ -1206,7 +1182,9 @@ bool M1_8::buildReport()
   string str_des_thr  = doubleToStringX(m_thrust.getThrust(),1);
   string str_des_thrL = doubleToStringX(m_thrust.getThrustLeft(),1);
   string str_des_thrR = doubleToStringX(m_thrust.getThrustRight(),1);
-  //string str_rot_hdg_tgt = doubleToStringX(m_rot_ctrl.getHeadingTarget(), 1);
+  string str_des_hdg  = doubleToStringX(m_des_heading, 1);
+  string str_des_spd  = doubleToStringX(m_des_speed, 1);
+  
 
   Notify("M4_DEBUG", str_des_thr);
   
@@ -1228,10 +1206,20 @@ bool M1_8::buildReport()
   string pd_navx = padString(str_nav_x, 10, false);
   string pd_navy = padString(str_nav_y, 10, false);
   string pd_volt = padString(str_voltage, 10, false);
+  string pd_des_hdg = padString(str_des_hdg, 10, false);
+  string pd_des_spd = padString(str_des_spd, 10, false);
+  
 
   
   m_msgs << "Config:    max_r/t: " << pd_ruth << "   stale_check:  " << str_sta_ena << endl;
   m_msgs << "           dr_mode: " << pd_drmo << "   stale_thresh: " << str_sta_thr << endl;
+  
+  if (m_legacy_controller){
+    m_msgs << "         ctrl: legacy                                 " << endl;
+  } else {
+    m_msgs << "         ctrl: turbo                                  " << endl;
+  }
+  
   m_msgs << "------------------------------------------------------" << endl;
   m_msgs << "Drive:     des_rud: " << pd_drud << "   des_thrust_L: " << str_des_thrL << endl;
   m_msgs << "State:     des_thr: " << pd_dthr << "   des_thrust_R: " << str_des_thrR << endl;
@@ -1241,18 +1229,16 @@ bool M1_8::buildReport()
   m_msgs << "------------------------------------------------------" << endl;
   m_msgs << "System:    voltage: " << pd_volt << "   satellites: " << str_sats << endl;
   m_msgs << "------------------------------------------------------" << endl;
-  m_msgs << "DESIRED_HEADING: " << m_heading << "    DESIRED_SPEED: " << m_speed << endl;
-  m_msgs << "Heading Diff: " << m_hdg_diff << " Min_Speed_Angle: " << m_s1 << " Max_Speed_Angle: " <<  m_s2 <<endl;
-  m_msgs << "Min Speed: " << m_min_speed << " Max Speed: " << m_max_speed << endl;
+  m_msgs << "                                                      " << endl;
+  m_msgs << "------------------------------------------------------" << endl;
+  m_msgs << "Desired:   Speed: " << pd_des_spd <<"   Heading: " << str_des_hdg << endl;
+  m_msgs << "------------------------------------------------------" << endl;
+  m_msgs << "                                                      " << endl;
+  //m_msgs << "DESIRED_HEADING: " << m_heading << "    DESIRED_SPEED: " << m_speed << endl;
+  //  m_msgs << "Heading Diff: " << m_hdg_diff << " Min_Speed_Angle: " << m_s1 << " Max_Speed_Angle: " <<  m_s2 <<endl;
+  // m_msgs << "Min Speed: " << m_min_speed << " Max Speed: " << m_max_speed << endl;
   
-  /*
-  if ( m_rot_ctrl.getRotateInPlace() ) {
-    m_msgs << "Rotation target heading: " << str_rot_hdg_tgt << endl;
-    if ( m_rot_ctrl.checkClearToRotate( m_nav_x, m_nav_y, m_curr_time ) )
-      m_msgs << "All clear to rotate.                                " << endl;
-    m_msgs << "------------------------------------------------------" << endl;
-  }
-  */
+
   list<string> summary_lines = m_ninja.getSummary();
   list<string>::iterator p;
   for(p=summary_lines.begin(); p!=summary_lines.end(); p++) {
