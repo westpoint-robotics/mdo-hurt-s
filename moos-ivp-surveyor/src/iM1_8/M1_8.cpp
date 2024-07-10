@@ -286,11 +286,7 @@ bool M1_8::Iterate()
       sendRCVisuals();
       
     } else if ( (m_op_mode != "RC_Receiver") && m_sent_rc_vis){
-      // clear the existing visual
-      XYCircle RC_control_marker_clear(0.0, 0.0, 6.0);
-      RC_control_marker_clear.set_active(false);
-      Notify("VIEW_CIRCLE", RC_control_marker_clear.get_spec());
-      m_sent_rc_vis = false; 
+      clearRCVisuals();
     }
 
   }
@@ -1214,7 +1210,7 @@ void M1_8::sendRCVisuals()
   std::string label = m_host_community + "_RC_control"; 
   XYCircle RC_control_marker(m_nav_x, m_nav_y, 6.0);
   
-  RC_control_marker.set_color("edge","blue");
+  RC_control_marker.set_color("edge","cyan");
   RC_control_marker.set_label(label);
   RC_control_marker.set_edge_size(3.0);
   Notify("VIEW_CIRCLE", RC_control_marker.get_spec());
@@ -1225,6 +1221,17 @@ void M1_8::sendRCVisuals()
   
 }
 
+void M1_8::clearRCVisuals()
+{
+  // clear the existing visual
+  std::string label = m_host_community + "_RC_control";
+  XYCircle RC_control_marker_clear(0.0, 0.0, 6.0);
+
+  RC_control_marker_clear.set_label(label);
+  RC_control_marker_clear.set_active(false);
+  Notify("VIEW_CIRCLE", RC_control_marker_clear.get_spec());
+  m_sent_rc_vis = false;
+}
 
 
 //------------------------------------------------------------
