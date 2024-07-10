@@ -25,10 +25,6 @@ M1_8::M1_8()
   m_max_rudder   = 30.0;        // default MAX_RUDDER (+/-)
   m_max_thrust   = 100.0;       // default MAX_THRUST (+/-)
   m_drive_mode   = "normal";    // default DRIVE_MODE ("normal"|"aggro"|"rotate")
-  //m_min_speed = 1.5;
-  //m_max_speed = 3.5;
-  //m_s1 = 75;
-  //m_s2 = 15;
 
   m_ivp_allstop      = true;
   m_moos_manual_override = true;
@@ -59,13 +55,17 @@ M1_8::M1_8()
   m_compass_prefix  = "COMPASS";
   m_gps_blocked     = false;
 
-  m_searobot_mode     = "T"; 
+  m_searobot_mode     = "T";
+  m_op_mode           = "unknown";
   m_legacy_controller = true;
   
   m_valid_USV_control_modes.insert("L");
   m_valid_USV_control_modes.insert("T");
   m_valid_USV_control_modes.insert("G");
   // add more if needed
+
+  m_sent_rc_vis = false;
+  m_post_rc_vis = false;
 }
 
 //---------------------------------------------------------
@@ -107,6 +107,8 @@ bool M1_8::OnStartUp()
       handled = m_ninja.setIPAddr(value);
     else if(param == "ivp_allstop")
       handled = setBooleanOnString(m_ivp_allstop, value);
+    else if(param == "post_rc_visuals")
+      handled = setBooleanOnString(m_post_rc_vis, value); 
     else if(param == "comms_type")
       handled = m_ninja.setCommsType(value);
     else if(param == "stale_thresh")
@@ -123,25 +125,6 @@ bool M1_8::OnStartUp()
       handled = handleConfigIgnoreMsg(value);
     else if(param == "legacy")
 	handled = setBooleanOnString(m_legacy_controller, value);
-    /*
-    else if(param == "min_speed"){
-      m_min_speed = stod(value);
-      handled = true;
-    }
-    else if(param == "max_speed"){
-      m_max_speed = stod(value);
-      handled = true;
-    }
-    else if(param == "min_speed_angle"){
-      m_s1 = stod(value);
-      handled = true;
-      
-    }
-    else if(param == "max_speed_angle"){
-      m_s2 = stod(value);
-      handled = true;
-    }
-    */
     else if(param == "heading_source"){
       if (value == "gps") {
 	m_heading_source = "gps";
@@ -297,6 +280,22 @@ bool M1_8::Iterate()
     readMessagesFromSocket();
   }
 
+  // post visuals of RC control mode
+  if(m_post_rc_vis){
+    if (m_op_mode == "RC Receiver"){
+      sendRCVisuals();
+      
+    } else if ( (m_op_mode != "RC_Receiver") && m_sent_rc_vis){
+      // clear the existing visual
+      XYCircle RC_control_marker_clear(0.0, 0.0, 6.0);
+      RC_control_marker_clear.set_active(false);
+      Notify("VIEW_CIRCLE", RC_control_marker_clear.get_spec());
+      m_sent_rc_vis = false; 
+    }
+
+  }
+
+    
   // Part 3: Get Appcast events from ninja and report them
   reportWarningsEvents();
   AppCastingMOOSApp::PostReport();
@@ -467,6 +466,8 @@ void M1_8::readMessagesFromSocket()
       handled = handleMsgPSEAA_heading(msg);
     else if(strBegins(msg, "$PSEAB"))
       handled = handleMsgPSEAB(msg);
+    else if(strBegins(msg, "$PSEAD"))
+      handled = handleMsgPSEAD(msg);
     else
       reportBadMessage(msg, "Unknown NMEA Key");
             
@@ -1085,6 +1086,67 @@ bool M1_8::handleMsgPSEAB(string msg)
 
 
 //---------------------------------------------------------
+// Procedure: handleMsgPSEAD()
+//      Note: Proper NMEA format and checksum prior confirmed  
+//   Example: $PSEAD,c--c,x.x,x.x,x.x,c--c,a,x,x*hh<CR><LF>
+//                 0,   1,  2,  3,  4,   5,6,7,8*HH
+//
+//  0	PSEAD
+//  1	[Control Mode]          Low level control mode
+//  2	[Heading]	        Degrees Charge Remaining or Fuel Remaining
+//  3	[Thrust]		Thrust
+//  4	[Thrust angle]		Thrust angle or thrust difference
+//  5	[Command String]       	see $PSEAC
+//  6	[Transmission Position]	T,F,R,N (see documentation)
+//  7	[Operator sent to]	See documentation
+//  8	[Operator in control]   See doucmentation
+
+
+bool M1_8::handleMsgPSEAD(string msg)
+{
+  if(!strBegins(msg, "$PSEAD,"))
+    return(false);
+  
+  // Remove the checksum info from end
+  rbiteString(msg, '*');
+  vector<string> flds = parseString(msg, ',');
+  if(flds.size() != 9) {
+    if(!m_ninja.getIgnoreCheckSum()) {
+      string warning = "Wrong field count:" + uintToString(flds.size());
+      return(reportBadMessage(msg, warning));
+    }
+  }
+  
+  string msg_str_op_in_control= flds[8];
+  if(!isNumber(msg_str_op_in_control))
+    return(reportBadMessage(msg, "Bad Operator Number"));
+
+  int int_op_in_control = atoi(msg_str_op_in_control.c_str());
+  string str_op_in_control = "";
+
+  if (int_op_in_control == 1){
+    str_op_in_control = "Primary";
+  } else if (int_op_in_control == 2){
+    str_op_in_control = "Secondary";
+  } else if (int_op_in_control == 3){
+    str_op_in_control = "Backup comms link to primary";
+  } else if (int_op_in_control == 5){
+    str_op_in_control = "RC Receiver";
+  } else if (int_op_in_control == 6){
+    str_op_in_control = "Obstacle Avoid Sys";
+  } else {
+    return(reportBadMessage(msg, "Bad Operator Number"));
+  } 
+
+  m_op_mode = str_op_in_control; 
+  
+  Notify("IM_8_OP_CONTROL_MODE", m_op_mode, "PSEAD");
+  return(true);
+}
+
+
+
+//---------------------------------------------------------
 // Procedure: reportBadMessage()
   
 bool M1_8::reportBadMessage(string msg, string reason)
@@ -1144,6 +1206,29 @@ void M1_8::convertThrustVals(double thrustL, double thrustR,
   return; 
 }
 
+//------------------------------------------------------------
+// Procedure:  sendRCVisuals()
+//             posts helpful visuals to pMarineViewer to show
+//             operators on shoreside when the RC control mode
+//             is active.
+
+void M1_8::sendRCVisuals()
+{
+  // build circle message
+  std::string label = m_host_community + "_RC_control"; 
+  XYCircle RC_control_marker(m_nav_x, m_nav_y, 6.0);
+  
+  RC_control_marker.set_color("edge","blue");
+  RC_control_marker.set_label(label);
+  RC_control_marker.set_edge_size(3.0);
+  Notify("VIEW_CIRCLE", RC_control_marker.get_spec());
+
+  m_sent_rc_vis = true;
+  
+  return; 
+  
+}
+
 
 
 //------------------------------------------------------------
@@ -1185,8 +1270,6 @@ bool M1_8::buildReport()
   string str_des_hdg  = doubleToStringX(m_des_heading, 1);
   string str_des_spd  = doubleToStringX(m_des_speed, 1);
   
-
-  Notify("M4_DEBUG", str_des_thr);
   
   string str_sta_thr  = doubleToStringX(m_stale_threshold,1);
   string str_sta_ena  = boolToString(m_stale_check_enabled);
@@ -1208,16 +1291,17 @@ bool M1_8::buildReport()
   string pd_volt = padString(str_voltage, 10, false);
   string pd_des_hdg = padString(str_des_hdg, 10, false);
   string pd_des_spd = padString(str_des_spd, 10, false);
+  string pd_op_mode = padString(m_op_mode, 20, false); 
   
 
-  
+ 
   m_msgs << "Config:    max_r/t: " << pd_ruth << "   stale_check:  " << str_sta_ena << endl;
   m_msgs << "           dr_mode: " << pd_drmo << "   stale_thresh: " << str_sta_thr << endl;
   
   if (m_legacy_controller){
-    m_msgs << "         ctrl: legacy                                 " << endl;
+    m_msgs << "   ctrl/thrust map: legacy       Op Mode: " << pd_op_mode   << endl;
   } else {
-    m_msgs << "         ctrl: turbo                                  " << endl;
+    m_msgs << "   ctrl/thrust map: turbo        Op Mode: " << pd_op_mode  << endl;
   }
   
   m_msgs << "------------------------------------------------------" << endl;

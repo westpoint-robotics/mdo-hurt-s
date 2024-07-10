@@ -16,6 +16,7 @@ ADD_EXECUTABLE(iM1_8 ${SRC})
 TARGET_LINK_LIBRARIES(iM1_8
   ${MOOS_LIBRARIES}
   ${MOOSGeodesy_LIBRARIES}
+  geometry
   apputil
   sock_util
   mbutil

@@ -15,8 +15,10 @@
 #include <string>
 #include "SockNinja.h"
 #include "Thruster.h"
+#include "XYCircle.h"
 #include "MOOS/libMOOSGeodesy/MOOSGeodesy.h"
 #include "MOOS/libMOOS/Thirdparty/AppCasting/AppCastingMOOSApp.h"
+
 
 class M1_8 : public AppCastingMOOSApp
 {
@@ -52,6 +54,8 @@ protected: // App Specific functions
   bool handleMsgPSEAB(std::string);
   bool handleMsgGPVTG(std::string);
   bool handleMsgPSEAG(std::string);
+  bool handleMsgPSEAD(std::string);
+  void sendRCVisuals(); 
 
   bool reportBadMessage(std::string msg, std::string reason="");
   bool GeodesySetup();
@@ -85,13 +89,16 @@ private: // State variables
   SockNinja    m_ninja;
   Thruster     m_thrust;
   std::string m_searobot_mode;
-
+  std::string m_op_mode;
+ 
   bool         m_ivp_allstop;
   bool         m_moos_manual_override;
 
   // Stale Message Detection
   bool         m_stale_check_enabled;
   bool         m_stale_mode;
+  bool         m_sent_rc_vis;
+  bool         m_post_rc_vis;
   double       m_stale_threshold;
   unsigned int m_count_stale;
   double       m_tstamp_des_rudder;
@@ -106,10 +113,6 @@ private: // State variables
   double	m_des_heading;
   double	m_des_speed;
   double	m_hdg_diff;
-  //  double	m_min_speed;
-  //  double	m_max_speed;
-  //  double	m_s1;
-  //  double	m_s2;
 
   unsigned int m_bad_nmea_semantic;
 
