@@ -510,10 +510,25 @@ void M1_8::checkForStalenessOrAllStop()
     m_searobot_mode = "T";
   
   if(m_ivp_allstop) {
-    m_thrust.setRudder(0);
-    m_thrust.setThrust(0);
-	m_searobot_mode = "L";
-    return;
+    // Teleop exception: under MOOS_MANUAL_OVERRIDE the helm's
+    // allstop is "ManualOverride", but an external driver (e.g.
+    // shoreside uXboxJoystick) may be streaming raw DESIRED_THRUST/
+    // RUDDER. Fresh commands while overridden mean drive them in T
+    // mode; if the stream dies the freshness test fails within
+    // m_stale_threshold and we drop back to L (zeros) right here.
+    double lag_rudder = m_curr_time - m_tstamp_des_rudder;
+    double lag_thrust = m_curr_time - m_tstamp_des_thrust;
+    bool fresh_cmds = (lag_rudder < m_stale_threshold) &&
+                      (lag_thrust < m_stale_threshold);
+    if(m_moos_manual_override && fresh_cmds) {
+      m_searobot_mode = "T";
+    }
+    else {
+      m_thrust.setRudder(0);
+      m_thrust.setThrust(0);
+      m_searobot_mode = "L";
+      return;
+    }
   }
 
   // If not checking staleness, ensure stale mode false, return.
